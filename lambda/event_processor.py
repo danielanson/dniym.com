@@ -2,19 +2,22 @@ from __future__ import print_function
 import logging
 import boto3
 import re
+import os
 import json
 import hashlib
 import socket
 from boto3.dynamodb.conditions import Key, Attr
 
+DYNAMO_DB_TABLE = os.environ['DYNAMO_DB_TABLE']
+DYNAMO_DB_INDEX_NAME = os.environ['DYNAMO_DB_INDEX_NAME']
 
-DYNAMO_DB_TABLE = "dniym"
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+logger.info("Loading function.")
 
 def create_response(err, res=None, status_code=None):
-
+    
     # This method sends response to api-gateway
     if not status_code:
         status_code = '400' if err else '200'
@@ -22,7 +25,7 @@ def create_response(err, res=None, status_code=None):
           type(status_code)))
     print("Res: {}, Err: {}".format(res, err))
     if status_code != 200:
-        raise Exception("process_event API failed!")
+        raise Exception("event_processor lambda failed.")
     response = {
         'statusCode': status_code,
         'body': err.message if err else json.dumps(res),
@@ -63,7 +66,7 @@ class EventProcessor:
             raise
 
     # Creates a SHA-1 hash of the IP and Phone Number as we dont store
-    # the phone_number in the DB or the logs, it only lives in memory
+    # the phone_number in the DB or the logs, it only lives in memory 
     # for the duration of the lambda.
     def create_sha1_hash(self):
         hash_object = hashlib.sha1(self.phone_number + self.ip_address)
@@ -86,14 +89,14 @@ class EventProcessor:
         hex_hash_count = response['Count']
         self.logger.info("hex_hash_count: %s", hex_hash_count)
         response = table.query(
-            IndexName='ip_address-index',
+            IndexName=DYNAMO_DB_INDEX_NAME,
             Select='COUNT',
             KeyConditionExpression=Key('ip_address').eq(self.ip_address)
         )
         ip_address_count = response['Count']
         self.logger.info("ip_address_count: %s", ip_address_count)
         return (int(hex_hash_count), int(ip_address_count))
-
+        
     def insert_dynamodb_record(self, hash_hex):
         table = self.DynamoDB_resource.Table(DYNAMO_DB_TABLE)
         table.put_item(Item={
@@ -102,7 +105,7 @@ class EventProcessor:
                 'stat': 'Unprocessed'
                 }
             )
-        self.logger.info("DynamoDB record fields: sha1_hash: {}, IP: {}, stat:\
+        self.logger.info("DynamoDB record fields: sha1_hash: {}, IP: {}, stat: \
                          Unprocessed".format(hash_hex, self.ip_address))
         return True
 
@@ -110,7 +113,7 @@ class EventProcessor:
 
         response = self.sns_client.publish(
             PhoneNumber=self.phone_number,
-            Message='dniym.com>',
+            Message='dniym.com>\n\nYou know D, right?\ndniym.com',
             MessageAttributes={
                 'AWS.SNS.SMS.SenderID': {
                     'DataType': 'String',
@@ -140,7 +143,6 @@ class EventProcessor:
         self.logger.info("Marked record as Processed")
         return True
 
-
 def lambda_handler(event, context):
 
     phone_number = event["phone_number"]
@@ -158,19 +160,19 @@ def lambda_handler(event, context):
         ep.validate_ip_address()
     except Exception as err:
         return create_response(err, {"message": "Validate IP address failed."},
-                               None)
+                                     None)
 
     hash_hex = ep.create_sha1_hash()
     if not hash_hex:
         return create_response(None, {"message": "sha1_hash creation failed."},
-                               400)
+                                      400)
 
     try:
         (hex_id_count, ip_address_count) = ep.spam_killer(hash_hex)
         if (hex_id_count or ip_address_count):
             logger.info("Spam killer invoked.")
             return create_response(None, {"message": "Spam Killer invoked."},
-
+                                   200)   
         else:
             pass
     except Exception as err:
@@ -181,17 +183,17 @@ def lambda_handler(event, context):
         ep.insert_dynamodb_record(hash_hex)
     except Exception as err:
         return create_response(err, {"message": "Dynamo DB reord creation \
-                               failed."}, 400)
+                                     failed."}, 400)
 
-    # try:
-    #    ep.send_SMS(event)
-    # except Exception as err:
-    #    return create_response(err, None, 400)
+    try:
+        ep.send_SMS()
+    except Exception as err:
+        return create_response(err, None, 400)
 
     try:
         ep.update_dynamodb_record(hash_hex)
     except Exception as err:
         return create_response(err, {"message": "Dynamo DB reord update \
-                               failed."}, 400)
+                                     failed."}, 400)
 
     return 'Message Sent.'
