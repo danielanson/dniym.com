@@ -17,7 +17,7 @@ logger.setLevel(logging.INFO)
 logger.info("Loading function.")
 
 def create_response(err, res=None, status_code=None):
-    
+
     # This method sends response to api-gateway
     if not status_code:
         status_code = '400' if err else '200'
@@ -66,7 +66,7 @@ class EventProcessor:
             raise
 
     # Creates a SHA-1 hash of the IP and Phone Number as we dont store
-    # the phone_number in the DB or the logs, it only lives in memory 
+    # the phone_number in the DB or the logs, it only lives in memory
     # for the duration of the lambda.
     def create_sha1_hash(self):
         hash_object = hashlib.sha1(self.phone_number + self.ip_address)
@@ -96,7 +96,7 @@ class EventProcessor:
         ip_address_count = response['Count']
         self.logger.info("ip_address_count: %s", ip_address_count)
         return (int(hex_hash_count), int(ip_address_count))
-        
+
     def insert_dynamodb_record(self, hash_hex):
         table = self.DynamoDB_resource.Table(DYNAMO_DB_TABLE)
         table.put_item(Item={
@@ -142,6 +142,7 @@ class EventProcessor:
         )
         self.logger.info("Marked record as Processed")
         return True
+
 
 def lambda_handler(event, context):
 
