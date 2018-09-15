@@ -1,0 +1,26 @@
+body {
+    background-color: white;
+    padding-top: 3%;
+    padding-left: 4%;
+    padding-right: 4%;
+    padding-bottom: 3%;
+}
+
+#title {
+    width: 100%;
+}
+
+h1 {
+    font-size: 6.3vw;
+}
+
+.courier {
+    color: black;
+    font-family: courier;
+    font-weight: bolder;
+    text-align: center;
+}
+
+.img {
+    width: 100%;
+}
