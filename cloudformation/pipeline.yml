@@ -156,9 +156,11 @@ Resources:
   PipelineBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
-    LifecycleConfiguration:
-      Rules:
-      - ExpirationInDays: 2
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+        - ExpirationInDays: 2
+          Status: Enabled
   CodeBuildDeploySite:
     Type: AWS::CodeBuild::Project
     DependsOn: CodeBuildRole
