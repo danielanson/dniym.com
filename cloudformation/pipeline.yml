@@ -161,12 +161,22 @@ Resources:
         Rules:
         - ExpirationInDays: 2
           Status: Enabled
+  LambdaBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Join ['', [!Ref 'SiteBucketName', '-lambdas']]
+  CFNBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Join ['', [!Ref 'SiteBucketName', '-cfns']]
   CodeBuildDeploySite:
     Type: AWS::CodeBuild::Project
     DependsOn: CodeBuildRole
     Properties:
       Name: !Sub ${AWS::StackName}-DeploySite
-      Description: Deploy site t/veo S3
+      Description: Deploy site from GitHub source to S3 static web hosting
       ServiceRole: !GetAtt CodeBuildRole.Arn
       Artifacts:
         Type: CODEPIPELINE
@@ -179,16 +189,14 @@ Resources:
         BuildSpec: !Sub |
           version: 0.1
           phases:
-            post_build:
+            build:
               commands:
                 - aws s3 cp --recursive --acl public-read ./css s3://${SiteBucketName}/css 
                 - aws s3 cp --recursive --acl public-read ./img s3://${SiteBucketName}/img
                 - aws s3 cp --recursive --acl public-read ./html s3://${SiteBucketName}/ 
                 - aws s3 cp --recursive --acl public-read ./scripts s3://${SiteBucketName}/scripts
-          artifacts:
-            type: zip
-            files:
-              - ./html/index.html
+                - aws s3 cp --recursive ./lambdas s3://${SiteBucketName}/lambdas
+                - aws s3 cp --recursive ./cloudformation s3://${SiteBucketName}/cloudformation
       TimeoutInMinutes: 10
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
