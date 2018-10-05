@@ -143,6 +143,15 @@ Resources:
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: error.html
+  TestSiteBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      AccessControl: PublicRead
+      BucketName: !Join ['', ['test.', !Ref 'SiteBucketName']]
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
   WWWSiteBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
